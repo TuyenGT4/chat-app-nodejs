@@ -9,11 +9,17 @@ const socket = require("socket.io");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 
+const xss = require("xss-clean");
+const mongoSanitize = require("express-mongo-sanitize");
+
 const app = express();
 require("dotenv").config();
 
 // bảo mật HTTP headers
 app.use(helmet());
+
+app.use(xss()); // Chống XSS attacks
+app.use(mongoSanitize()); // Chống MongoDB injection
 
 app.use(
   cors({
