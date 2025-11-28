@@ -3,9 +3,17 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const authRoutes = require("./routes/auth");
 const messageRoutes = require("./routes/messages");
-const app = express();
+
 const socket = require("socket.io");
+
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+
+const app = express();
 require("dotenv").config();
+
+// bảo mật HTTP headers
+app.use(helmet());
 
 app.use(
   cors({
@@ -34,6 +42,24 @@ app.get("/ping", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+
+// Rate limiting chung - 100 requests / 15 phút
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { message: "Too many requests, please try again later." },
+});
+
+// Rate limit cho auth - 5 requests / 15 phút (chống brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { message: "Too many attempts, please try again after 15 minutes." },
+});
+
+app.use("/api/", limiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
 
 const server = app.listen(process.env.PORT, () =>
   console.log(`Server started on ${process.env.PORT}`)
