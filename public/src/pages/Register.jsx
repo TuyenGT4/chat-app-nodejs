@@ -6,10 +6,10 @@ import Logo from "../assets/logo.svg";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
-  registerRoute,
-  sendVerificationCodeRoute,
-  verifyCodeRoute,
-} from "../utils/APIRoutes";
+  generateVerificationCode,
+  sendVerificationEmail,
+} from "../utils/emailService";
+import { registerRoute } from "../utils/APIRoutes";
 import ReCAPTCHA from "react-google-recaptcha";
 
 export default function Register() {
@@ -35,6 +35,8 @@ export default function Register() {
   const [captchaToken, setCaptchaToken] = useState(null);
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [isCodeVerified, setIsCodeVerified] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [codeExpiry, setCodeExpiry] = useState(null);
   const [passwordStrength, setPasswordStrength] = useState({
     hasMinLength: false,
     hasUpperCase: false,
@@ -132,7 +134,7 @@ export default function Register() {
     return true;
   };
 
-  // Gửi mã xác thực về email
+  // Gửi mã xác thực về email bằng EmailJS
   const handleSendVerificationCode = async () => {
     const { email } = values;
     if (!email || !email.includes("@")) {
@@ -141,41 +143,55 @@ export default function Register() {
     }
 
     try {
-      const { data } = await axios.post(sendVerificationCodeRoute, { email });
-      if (data.status === true) {
+      // Tạo mã xác thực
+      const code = generateVerificationCode();
+
+      // Gửi email bằng EmailJS
+      const result = await sendVerificationEmail(email, code);
+
+      if (result.success) {
+        // Lưu mã để verify sau
+        setGeneratedCode(code);
+        setCodeExpiry(Date.now() + 10 * 60 * 1000); // 10 phút
         setIsCodeSent(true);
         toast.success(
           "Mã xác thực đã được gửi về email của bạn.",
           toastOptions
         );
       } else {
-        toast.error(data.msg, toastOptions);
+        toast.error("Có lỗi xảy ra khi gửi mã xác thực.", toastOptions);
       }
     } catch (error) {
+      console.error("Send code error:", error);
       toast.error("Có lỗi xảy ra khi gửi mã xác thực.", toastOptions);
     }
   };
 
-  // Xác thực mã từ email
-  const handleVerifyCode = async () => {
-    const { email, verificationCode } = values;
+  // Xác thực mã từ email (verify ở Frontend)
+  const handleVerifyCode = () => {
+    const { verificationCode } = values;
+
     if (!verificationCode) {
       toast.error("Vui lòng nhập mã xác thực.", toastOptions);
       return;
     }
 
-    try {
-      const { data } = await axios.post(verifyCodeRoute, {
-        email,
-        code: verificationCode,
-      });
-      if (data.status === true) {
-        setIsCodeVerified(true);
-        toast.success("Xác thực email thành công!", toastOptions);
-      } else {
-        toast.error(data.msg, toastOptions);
-      }
-    } catch (error) {
+    // Kiểm tra hết hạn
+    if (Date.now() > codeExpiry) {
+      toast.error(
+        "Mã xác thực đã hết hạn.  Vui lòng gửi lại mã.",
+        toastOptions
+      );
+      setIsCodeSent(false);
+      setGeneratedCode("");
+      return;
+    }
+
+    // Kiểm tra mã
+    if (verificationCode === generatedCode) {
+      setIsCodeVerified(true);
+      toast.success("Xác thực email thành công!", toastOptions);
+    } else {
       toast.error("Mã xác thực không đúng.", toastOptions);
     }
   };

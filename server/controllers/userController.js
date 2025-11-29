@@ -1,7 +1,7 @@
 require("dotenv").config();
 const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 const axios = require("axios");
 const { generateToken } = require("../middleware/authMiddleware");
 const {
@@ -17,14 +17,10 @@ const verificationCodes = new Map();
 // Lưu trữ online users
 const onlineUsers = new Map();
 
-// Cấu hình email transporter
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications["api-key"];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+const transactionalEmailsApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Xác thực CAPTCHA
 const verifyCaptcha = async (token) => {
@@ -201,13 +197,25 @@ module.exports.register = async (req, res, next) => {
   }
 };
 
-// ==================== SEND VERIFICATION CODE ====================
+// ==================== SEND VERIFICATION CODE (BREVO API) ====================
 module.exports.sendVerificationCode = async (req, res, next) => {
+  console.log("=== SEND VERIFICATION CODE ===");
+  console.log("Request body:", req.body);
+  console.log("BREVO_API_KEY exists:", !!process.env.BREVO_API_KEY);
+
   try {
     const { email } = req.body;
 
+    if (!email) {
+      console.log("Error: Email is missing");
+      return res.json({ status: false, msg: "Email là bắt buộc." });
+    }
+
+    console.log("Sending to email:", email);
+
     // Tạo mã xác thực 6 số
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log("Generated code:", code);
 
     // Lưu mã với thời hạn 10 phút
     verificationCodes.set(email, {
@@ -215,23 +223,29 @@ module.exports.sendVerificationCode = async (req, res, next) => {
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    // Gửi email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Mã xác thực đăng ký tài khoản Snappy",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #4e0eff;">Xác thực Email của bạn</h2>
-          <p>Mã xác thực của bạn là:</p>
-          <h1 style="color: #4e0eff; font-size: 32px; letter-spacing: 5px;">${code}</h1>
-          <p>Mã này sẽ hết hạn sau 10 phút.</p>
-          <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.</p>
-        </div>
-      `,
-    };
+    // ✅ Gửi email bằng Brevo API
+    console.log("Calling Brevo API.. .");
 
-    await transporter.sendMail(mailOptions);
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.subject = "Mã xác thực đăng ký tài khoản Snappy";
+    sendSmtpEmail.htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #4e0eff;">Xác thực Email của bạn</h2>
+        <p>Mã xác thực của bạn là:</p>
+        <h1 style="color: #4e0eff; font-size: 32px; letter-spacing: 5px;">${code}</h1>
+        <p>Mã này sẽ hết hạn sau 10 phút.</p>
+        <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.</p>
+      </div>
+    `;
+    sendSmtpEmail.sender = {
+      name: "Snappy Chat",
+      email: "tuyen1907004@gmail.com",
+    };
+    sendSmtpEmail.to = [{ email: email }];
+
+    const data = await transactionalEmailsApi.sendTransacEmail(sendSmtpEmail);
+
+    console.log("Email sent successfully!  Message ID:", data.messageId);
     return res.json({ status: true, msg: "Mã xác thực đã được gửi." });
   } catch (ex) {
     console.error("Send verification code error:", ex);
