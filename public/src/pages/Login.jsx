@@ -87,14 +87,14 @@ export default function Login() {
           </div>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Tên tài khoản"
             name="username"
             onChange={(e) => handleChange(e)}
             min="3"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Mật khẩu"
             name="password"
             onChange={(e) => handleChange(e)}
           />

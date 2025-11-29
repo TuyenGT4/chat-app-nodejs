@@ -221,7 +221,7 @@ export default function Register() {
 
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Tên tài khoản"
             name="username"
             onChange={(e) => handleChange(e)}
           />
@@ -268,7 +268,7 @@ export default function Register() {
 
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Mật khẩu"
             name="password"
             onChange={(e) => handleChange(e)}
           />
@@ -296,7 +296,7 @@ export default function Register() {
 
           <input
             type="password"
-            placeholder="Confirm Password"
+            placeholder="Xác nhận lại mật khẩu"
             name="confirmPassword"
             onChange={(e) => handleChange(e)}
           />
