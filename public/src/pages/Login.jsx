@@ -68,6 +68,7 @@ export default function Login() {
         setCaptchaToken(null);
       }
       if (data.status === true) {
+        localStorage.setItem("chat-app-token", data.token);
         localStorage.setItem(
           process.env.REACT_APP_LOCALHOST_KEY,
           JSON.stringify(data.user)

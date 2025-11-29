@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import axios from "axios";
 import loader from "../assets/loader.gif";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import { setAvatarRoute } from "../utils/APIRoutes";
 import multiavatar from "@multiavatar/multiavatar/esm";
+import api from "../utils/axiosConfig";
 
 export default function SetAvatar() {
   const navigate = useNavigate();
@@ -55,7 +54,7 @@ export default function SetAvatar() {
       localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
     );
 
-    const { data } = await axios.post(`${setAvatarRoute}/${user._id}`, {
+    const { data } = await api.post(`/api/auth/setavatar/${user._id}`, {
       image: avatars[selectedAvatar],
     });
 
@@ -68,7 +67,7 @@ export default function SetAvatar() {
       );
       navigate("/");
     } else {
-      toast.error("Error setting avatar. Please try again.", toastOptions);
+      toast.error("Error setting avatar.  Please try again.", toastOptions);
     }
   };
 
