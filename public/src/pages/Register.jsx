@@ -53,7 +53,6 @@ export default function Register() {
     const { name, value } = event.target;
     setValues({ ...values, [name]: value });
 
-    // Kiểm tra độ mạnh mật khẩu khi nhập
     if (name === "password") {
       setPasswordStrength({
         hasMinLength: value.length >= 8,
@@ -69,13 +68,12 @@ export default function Register() {
     setCaptchaToken(token);
   };
 
-  // Validate password với các yêu cầu bảo mật
   const validatePassword = (password) => {
     const minLength = 8;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    const hasSpecialChar = /[! @#$%^&*(),.? ":{}|<>]/.test(password);
 
     if (password.length < minLength) {
       toast.error("Mật khẩu phải có ít nhất 8 ký tự.", toastOptions);
@@ -132,7 +130,6 @@ export default function Register() {
     return true;
   };
 
-  // Gửi mã xác thực về email
   const handleSendVerificationCode = async () => {
     const { email } = values;
     if (!email || !email.includes("@")) {
@@ -156,7 +153,6 @@ export default function Register() {
     }
   };
 
-  // Xác thực mã từ email
   const handleVerifyCode = async () => {
     const { email, verificationCode } = values;
     if (!verificationCode) {
@@ -203,7 +199,6 @@ export default function Register() {
         navigate("/");
       }
 
-      // Reset captcha sau khi submit
       recaptchaRef.current.reset();
       setCaptchaToken(null);
     }
@@ -274,7 +269,6 @@ export default function Register() {
             onChange={(e) => handleChange(e)}
           />
 
-          {/* Password strength indicator */}
           <div className="password-requirements">
             <p className={passwordStrength.hasMinLength ? "valid" : "invalid"}>
               {passwordStrength.hasMinLength ? "✓" : "✗"} Ít nhất 8 ký tự
@@ -302,7 +296,6 @@ export default function Register() {
             onChange={(e) => handleChange(e)}
           />
 
-          {/* reCAPTCHA */}
           <div className="captcha-container">
             <ReCAPTCHA
               ref={recaptchaRef}
@@ -339,7 +332,7 @@ const FormContainer = styled.div`
   align-items: center;
   background-color: #131324;
 
-  .brand {
+  . brand {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -449,7 +442,7 @@ const FormContainer = styled.div`
     border: none;
     font-weight: bold;
     cursor: pointer;
-    border-radius: 0.4rem;
+    border-radius: 0 4rem;
     font-size: 1rem;
     text-transform: uppercase;
 

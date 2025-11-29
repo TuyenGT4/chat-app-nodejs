@@ -96,7 +96,7 @@ export default function ChatContainer({ currentChat, socket }) {
                   message.fromSelf ? "sended" : "recieved"
                 }`}
               >
-                <div className="content ">
+                <div className="content">
                   <p>{message.message}</p>
                 </div>
               </div>
@@ -117,7 +117,7 @@ const Container = styled.div`
   @media screen and (min-width: 720px) and (max-width: 1080px) {
     grid-template-rows: 15% 70% 15%;
   }
-  .chat-header {
+  . chat-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
