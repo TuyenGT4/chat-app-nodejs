@@ -3,9 +3,19 @@ const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const axios = require("axios");
+const { generateToken } = require("../middleware/authMiddleware");
+const {
+  logLogin,
+  logLogout,
+  logRegister,
+  logAvatarUpdate,
+} = require("../services/activityLogger");
 
 // Lưu trữ mã xác thực tạm thời (trong thực tế nên dùng Redis)
 const verificationCodes = new Map();
+
+// Lưu trữ online users
+const onlineUsers = new Map();
 
 // Cấu hình email transporter
 const transporter = nodemailer.createTransport({
@@ -42,7 +52,7 @@ const validatePassword = (password) => {
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.? ":{}|<>]/.test(password);
+  const hasSpecialChar = /[! @#$%^&*(),.? ":{}|<>]/.test(password);
 
   if (password.length < minLength) {
     return { valid: false, msg: "Mật khẩu phải có ít nhất 8 ký tự." };
@@ -62,6 +72,7 @@ const validatePassword = (password) => {
   return { valid: true };
 };
 
+// ==================== LOGIN ====================
 module.exports.login = async (req, res, next) => {
   try {
     const { username, password, captchaToken } = req.body;
@@ -76,27 +87,54 @@ module.exports.login = async (req, res, next) => {
       return res.json({ msg: "Xác thực CAPTCHA thất bại.", status: false });
     }
 
+    // Tìm user
     const user = await User.findOne({ username });
-    if (!user)
+    if (!user) {
+      // Log đăng nhập thất bại
+      await logLogin(req, null, false);
       return res.json({
         msg: "Username hoặc Password không đúng",
         status: false,
       });
+    }
 
+    // Kiểm tra mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid)
+    if (!isPasswordValid) {
+      // Log đăng nhập thất bại
+      await logLogin(req, user._id, false);
       return res.json({
         msg: "Username hoặc Password không đúng",
         status: false,
       });
+    }
 
-    delete user.password;
-    return res.json({ status: true, user });
+    // Kiểm tra tài khoản có bị khóa không
+    if (user.isActive === false) {
+      return res.json({ msg: "Tài khoản đã bị khóa", status: false });
+    }
+
+    // Log đăng nhập thành công
+    await logLogin(req, user._id, true);
+
+    // Cập nhật lastLogin
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Tạo JWT token
+    const token = generateToken(user._id);
+
+    // Tạo response không có password
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    return res.json({ status: true, user: userResponse, token });
   } catch (ex) {
     next(ex);
   }
 };
 
+// ==================== REGISTER ====================
 module.exports.register = async (req, res, next) => {
   try {
     const { username, email, password, captchaToken } = req.body;
@@ -131,14 +169,24 @@ module.exports.register = async (req, res, next) => {
       username,
       password: hashedPassword,
     });
-    delete user.password;
-    return res.json({ status: true, user });
+
+    // Log đăng ký thành công
+    await logRegister(req, user._id);
+
+    // Tạo JWT token
+    const token = generateToken(user._id);
+
+    // Tạo response không có password
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    return res.json({ status: true, user: userResponse, token });
   } catch (ex) {
     next(ex);
   }
 };
 
-// Gửi mã xác thực qua email
+// ==================== SEND VERIFICATION CODE ====================
 module.exports.sendVerificationCode = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -149,7 +197,7 @@ module.exports.sendVerificationCode = async (req, res, next) => {
     // Lưu mã với thời hạn 10 phút
     verificationCodes.set(email, {
       code,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 phút
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
     // Gửi email
@@ -176,7 +224,7 @@ module.exports.sendVerificationCode = async (req, res, next) => {
   }
 };
 
-// Xác thực mã
+// ==================== VERIFY CODE ====================
 module.exports.verifyCode = async (req, res, next) => {
   try {
     const { email, code } = req.body;
@@ -194,7 +242,7 @@ module.exports.verifyCode = async (req, res, next) => {
       verificationCodes.delete(email);
       return res.json({
         status: false,
-        msg: "Mã xác thực đã hết hạn.  Vui lòng gửi lại mã.",
+        msg: "Mã xác thực đã hết hạn. Vui lòng gửi lại mã.",
       });
     }
 
@@ -210,7 +258,7 @@ module.exports.verifyCode = async (req, res, next) => {
   }
 };
 
-// Các hàm khác giữ nguyên...
+// ==================== GET ALL USERS ====================
 module.exports.getAllUsers = async (req, res, next) => {
   try {
     const users = await User.find({ _id: { $ne: req.params.id } }).select([
@@ -225,6 +273,7 @@ module.exports.getAllUsers = async (req, res, next) => {
   }
 };
 
+// ==================== SET AVATAR ====================
 module.exports.setAvatar = async (req, res, next) => {
   try {
     const userId = req.params.id;
@@ -237,6 +286,10 @@ module.exports.setAvatar = async (req, res, next) => {
       },
       { new: true }
     );
+
+    // Log cập nhật avatar
+    await logAvatarUpdate(req, userId);
+
     return res.json({
       isSet: userData.isAvatarImageSet,
       image: userData.avatarImage,
@@ -246,11 +299,20 @@ module.exports.setAvatar = async (req, res, next) => {
   }
 };
 
-module.exports.logOut = (req, res, next) => {
+// ==================== LOGOUT ====================
+module.exports.logOut = async (req, res, next) => {
   try {
-    if (!req.params.id) return res.json({ msg: "User id is required " });
-    onlineUsers.delete(req.params.id);
-    return res.status(200).send();
+    const userId = req.params.id;
+
+    if (!userId) {
+      return res.json({ msg: "User id is required" });
+    }
+
+    // Log đăng xuất
+    await logLogout(req, userId);
+
+    onlineUsers.delete(userId);
+    return res.status(200).json({ status: true, msg: "Đăng xuất thành công" });
   } catch (ex) {
     next(ex);
   }
