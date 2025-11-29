@@ -96,7 +96,7 @@ export default function ChatContainer({ currentChat, socket }) {
                   message.fromSelf ? "sended" : "recieved"
                 }`}
               >
-                <div className="content">
+                <div className="content ">
                   <p>{message.message}</p>
                 </div>
               </div>
@@ -117,12 +117,12 @@ const Container = styled.div`
   @media screen and (min-width: 720px) and (max-width: 1080px) {
     grid-template-rows: 15% 70% 15%;
   }
-  . chat-header {
+  .chat-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 2rem;
-    . user-details {
+    .user-details {
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -145,7 +145,7 @@ const Container = styled.div`
     gap: 1rem;
     overflow: auto;
     &::-webkit-scrollbar {
-      width: 0 2rem;
+      width: 0.2rem;
       &-thumb {
         background-color: #ffffff39;
         width: 0.1rem;
@@ -155,11 +155,11 @@ const Container = styled.div`
     .message {
       display: flex;
       align-items: center;
-      . content {
+      .content {
         max-width: 40%;
         overflow-wrap: break-word;
         padding: 1rem;
-        font-size: 1 1rem;
+        font-size: 1.1rem;
         border-radius: 1rem;
         color: #d1d1d1;
         @media screen and (min-width: 720px) and (max-width: 1080px) {
@@ -169,7 +169,7 @@ const Container = styled.div`
     }
     .sended {
       justify-content: flex-end;
-      . content {
+      .content {
         background-color: #4f04ff21;
       }
     }
