@@ -90,7 +90,6 @@ module.exports.login = async (req, res, next) => {
     // Tìm user
     const user = await User.findOne({ username });
     if (!user) {
-      // Log đăng nhập thất bại
       await logLogin(req, null, false);
       return res.json({
         msg: "Username hoặc Password không đúng",
@@ -101,7 +100,6 @@ module.exports.login = async (req, res, next) => {
     // Kiểm tra mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      // Log đăng nhập thất bại
       await logLogin(req, user._id, false);
       return res.json({
         msg: "Username hoặc Password không đúng",
@@ -124,9 +122,18 @@ module.exports.login = async (req, res, next) => {
     // Tạo JWT token
     const token = generateToken(user._id);
 
-    // Tạo response không có password
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    // ✅ Tạo response CHỈ với các field cần thiết (KHÔNG có password)
+    const userResponse = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      isAvatarImageSet: user.isAvatarImageSet,
+      avatarImage: user.avatarImage,
+      role: user.role,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+    };
 
     return res.json({ status: true, user: userResponse, token });
   } catch (ex) {
@@ -176,9 +183,17 @@ module.exports.register = async (req, res, next) => {
     // Tạo JWT token
     const token = generateToken(user._id);
 
-    // Tạo response không có password
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    // ✅ Tạo response CHỈ với các field cần thiết (KHÔNG có password)
+    const userResponse = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      isAvatarImageSet: user.isAvatarImageSet || false,
+      avatarImage: user.avatarImage || "",
+      role: user.role || "user",
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    };
 
     return res.json({ status: true, user: userResponse, token });
   } catch (ex) {
